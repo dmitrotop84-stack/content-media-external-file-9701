@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Мої нотатки — Простір для письма та фанфіків</title>
+  <!-- Підключення Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Підключення шрифту Inter для чистої типографіки One UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            oneui: {
+              lightBg: '#F6F6F8',
+              lightCard: '#FFFFFF',
+              lightText: '#1C1C1E',
+              lightSub: '#6E6E73',
+              darkBg: '#000000',
+              darkCard: '#171719',
+              darkElevated: '#232326',
+              darkText: '#F2F2F7',
+              darkSub: '#8E8E93',
+              accent: '#FF6B00', // Фірмовий теплий акцент Samsung Notes
+              accentHover: '#E55D00',
+              accentSoft: 'rgba(255, 107, 0, 0.12)',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Загальні стилі та приховування смуги прокрутки там, де потрібен чистий скрол One UI */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overscroll-behavior-y: none;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Плавні анімації появи модальних вікон та елементів */
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .animate-modal {
+      animation: fadeInScale 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide-up {
+      animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Кастомний скролбар для десктопу */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(142, 142, 147, 0.3);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(142, 142, 147, 0.5);
+    }
+  </style>
+</head>
+<body class="bg-oneui-lightBg text-oneui-lightText dark:bg-oneui-darkBg dark:text-oneui-darkText transition-colors duration-200 min-h-screen flex flex-col">
+
+  <!-- Сповіщення (Toast) замість стандартних alert -->
+  <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2 w-full max-w-sm px-4"></div>
+
+  <!-- ========================================================= -->
+  <!-- ЕКРАН 1: ГОЛОВНИЙ СПИСОК НОТАТОК (SAMSUNG NOTES HOME)     -->
+  <!-- ========================================================= -->
+  <div id="home-view" class="flex-1 flex flex-col max-w-4xl w-full mx-auto px-4 sm:px-6 pb-28">
+    
+    <!-- Велика шапка в стилі Samsung One UI -->
+    <header class="pt-8 pb-4 sm:pt-12 sm:pb-6 flex flex-col gap-4">
+      <div class="flex items-end justify-between">
+        <div>
+          <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">Мої нотатки</h1>
+          <p id="notes-counter" class="text-sm text-oneui-lightSub dark:text-oneui-darkSub mt-1 font-medium">Завантаження...</p>
+        </div>
+
+        <!-- Кнопки дій у шапці -->
+        <div class="flex items-center gap-2">
+          <!-- Кнопка пошуку по всіх нотатках -->
+          <button onclick="toggleGlobalSearch()" id="btn-toggle-search" title="Пошук нотаток"
+            class="w-11 h-11 rounded-full bg-oneui-lightCard dark:bg-oneui-darkCard shadow-sm flex items-center justify-center hover:scale-105 active:scale-95 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="M21 21l-4.35-4.35" stroke-linecap="round"></path>
+            </svg>
+          </button>
+
+          <!-- Кнопка резервної копії (Експорт / Імпорт) -->
+          <button onclick="openBackupModal()" title="Резервна копія (Експорт/Імпорт)"
+            class="w-11 h-11 rounded-full bg-oneui-lightCard dark:bg-oneui-darkCard shadow-sm flex items-center justify-center hover:scale-105 active:scale-95 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+          </button>
+
+          <!-- Перемикач світлої та темної AMOLED-теми -->
+          <button onclick="toggleTheme()" id="btn-theme" title="Змінити тему"
+            class="w-11 h-11 rounded-full bg-oneui-lightCard dark:bg-oneui-darkCard shadow-sm flex items-center justify-center hover:scale-105 active:scale-95 transition text-oneui-accent">
+            <!-- Іконка сонця / місяця оновлюється скриптом -->
+            <svg id="icon-sun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="5"></circle>
+              <path stroke-linecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+            </svg>
+            <svg id="icon-moon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Рядок пошуку по нотатках (прихований за замовчуванням) -->
+      <div id="global-search-bar" class="hidden animate-slide-up">
+        <div class="relative flex items-center">
+          <svg class="w-5 h-5 absolute left-4 text-oneui-lightSub dark:text-oneui-darkSub" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="M21 21l-4.35-4.35" stroke-linecap="round"></path>
+          </svg>
+          <input type="text" id="global-search-input" oninput="renderNotesList()" placeholder="Пошук за назвою, текстом або персонажем..."
+            class="w-full pl-12 pr-10 py-3 rounded-2xl bg-oneui-lightCard dark:bg-oneui-darkCard border border-transparent focus:border-oneui-accent outline-none text-sm shadow-sm transition" />
+          <button onclick="clearGlobalSearch()" class="absolute right-3 p-1 text-oneui-lightSub dark:text-oneui-darkSub hover:text-oneui-accent">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Горизонтальні вкладки-фільтри категорій -->
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1" id="category-tabs">
+        <button onclick="setFilterCategory('Усі')" data-cat="Усі" class="cat-tab px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition bg-oneui-accent text-white shadow-sm">
+          Усі
+        </button>
+        <button onclick="setFilterCategory('Думки')" data-cat="Думки" class="cat-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition bg-oneui-lightCard dark:bg-oneui-darkCard text-oneui-lightSub dark:text-oneui-darkSub">
+          💭 Думки
+        </button>
+        <button onclick="setFilterCategory('Фанфіки')" data-cat="Фанфіки" class="cat-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition bg-oneui-lightCard dark:bg-oneui-darkCard text-oneui-lightSub dark:text-oneui-darkSub">
+          🎭 Фанфіки по ролях
+        </button>
+        <button onclick="setFilterCategory('Чернетки')" data-cat="Чернетки" class="cat-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition bg-oneui-lightCard dark:bg-oneui-darkCard text-oneui-lightSub dark:text-oneui-darkSub">
+          📝 Чернетки
+        </button>
+      </div>
+    </header>
+
+    <!-- Сітка карток нотаток -->
+    <main id="notes-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+      <!-- Картки рендеряться через JS -->
+    </main>
+
+    <!-- Порожній стан -->
+    <div id="empty-state" class="hidden flex-1 flex flex-col items-center justify-center text-center py-16 px-4">
+      <div class="w-20 h-20 rounded-3xl bg-oneui-lightCard dark:bg-oneui-darkCard shadow-sm flex items-center justify-center mb-4 text-3xl">
+        ✍️
+      </div>
+      <h3 class="text-lg font-semibold mb-1">Поки що тут тихо</h3>
+      <p class="text-sm text-oneui-lightSub dark:text-oneui-darkSub max-w-xs">
+        Натисни помаранчеву кнопку <strong>«+»</strong> внизу, щоб записати свої думки або розпочати нову історію по ролях.
+      </p>
+    </div>
+
+    <!-- Плаваюча кнопка створення нової нотатки (FAB у стилі Samsung Notes) -->
+    <button onclick="openCreateChoiceModal()" aria-label="Створити нотатку"
+      class="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 w-16 h-16 rounded-full bg-oneui-accent hover:bg-oneui-accentHover text-white shadow-lg shadow-orange-500/30 flex items-center justify-center transition-transform hover:scale-105 active:scale-95 z-30">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- ЕКРАН 2: РЕДАКТОР ЗВИЧАЙНОЇ НОТАТКИ / ДУМОК               -->
+  <!-- ========================================================= -->
+  <div id="note-editor-view" class="hidden flex-1 flex flex-col max-w-4xl w-full mx-auto bg-oneui-lightCard dark:bg-oneui-darkCard sm:my-4 sm:rounded-3xl shadow-sm overflow-hidden">
+    <!-- Верхня панель навігації редактора -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-zinc-800/80">
+      <button onclick="closeEditor()" class="flex items-center gap-1.5 py-2 px-3 -ml-2 rounded-2xl hover:bg-gray-100 dark:hover:bg-zinc-800 font-semibold text-sm transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        <span>Назад</span>
+      </button>
+
+      <div class="flex items-center gap-1.5">
+        <span id="note-save-status" class="text-xs text-oneui-lightSub dark:text-oneui-darkSub mr-2">Збережено</span>
+        
+        <!-- Вибір категорії -->
+        <select id="note-category-select" onchange="updateStandardNote()"
+          class="text-xs font-medium bg-oneui-lightBg dark:bg-oneui-darkElevated px-3 py-2 rounded-xl outline-none cursor-pointer">
+          <option value="Думки">💭 Думки</option>
+          <option value="Чернетки">📝 Чернетки</option>
+          <option value="Фанфіки">🎭 Фанфіки</option>
+        </select>
+
+        <!-- Копіювати текст -->
+        <button onclick="copyCurrentNoteText()" title="Копіювати текст"
+          class="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 text-oneui-lightSub dark:text-oneui-darkSub hover:text-oneui-accent transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+          </svg>
+        </button>
+
+        <!-- Завантажити .txt -->
+        <button onclick="downloadCurrentNoteTxt()" title="Завантажити .txt"
+          class="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 text-oneui-lightSub dark:text-oneui-darkSub hover:text-oneui-accent transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Тіло нотатки -->
+    <div class="flex-1 flex flex-col p-5 sm:p-8">
+      <input type="text" id="note-title-input" oninput="updateStandardNote()" placeholder="Заголовок думки..."
+        class="w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none placeholder-gray-300 dark:placeholder-zinc-700 mb-3" />
+      
+      <div class="flex items-center gap-3 text-xs text-oneui-lightSub dark:text-oneui-darkSub mb-5">
+        <span id="note-date-label">Сьогодні</span>
+        <span>•</span>
+        <span id="note-stats-label">0 слів, 0 символів</span>
+      </div>
+
+      <textarea id="note-body-input" oninput="updateStandardNote()" placeholder="Почни писати свої думки, ідеї чи уривки тут..."
+        class="flex-1 w-full bg-transparent outline-none resize-none text-base sm:text-lg leading-relaxed placeholder-gray-300 dark:placeholder-zinc-700 min-h-[55vh]"></textarea>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- ЕКРАН 3: РЕДАКТОР ФАНФІКІВ ТА ДІАЛОГІВ ПО РОЛЯХ           -->
+  <!-- ========================================================= -->
+  <div id="roleplay-editor-view" class="hidden fixed inset-0 z-20 flex flex-col bg-oneui-lightBg dark:bg-oneui-darkBg">
+    
+    <!-- Верхня шапка редактора ролей -->
+    <header class="bg-oneui-lightCard dark:bg-oneui-darkCard border-b border-gray-100 dark:border-zinc-800/80 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 shrink-0">
+      <div class="flex items-center gap-2 min-w-0 flex-1">
+        <button onclick="closeEditor()" class="flex items-center gap-1 py-2 px-2.5 rounded-2xl hover:bg-gray-100 dark:hover:bg-zinc-800 font-semibold text-sm shrink-0 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span class="hidden sm:inline">Назад</span>
+        </button>
+
+        <input type="text" id="rp-title-input" oninput="updateRoleplayMeta()" placeholder="Назва історії або фанфіку..."
+          class="w-full font-bold text-base sm:text-lg bg-transparent outline-none truncate placeholder-gray-400 dark:placeholder-zinc-600" />
+      </div>
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        <!-- Категорія -->
+        <select id="rp-category-select" onchange="updateRoleplayMeta()"
+          class="hidden md:block text-xs font-medium bg-oneui-lightBg dark:bg-oneui-darkElevated px-3 py-2 rounded-xl outline-none cursor-pointer">
+          <option value="Фанфіки">🎭 Фанфіки</option>
+          <option value="Чернетки">📝 Чернетки</option>
+          <option value="Думки">💭 Думки</option>
+        </select>
+
+        <!-- Кнопка копіювання готового тексту -->
+        <button onclick="copyRoleplayText()" title="Скопіювати весь текст"
+          class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-oneui-lightBg dark:bg-oneui-darkElevated hover:text-oneui-accent text-xs font-semibold transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+          </svg>
+          <span class="hidden sm:inline">Копіювати</span>
+        </button>
+
+        <!-- Кнопка завантаження .txt -->
+        <button onclick="downloadRoleplayTxt()" title="Завантажити .txt"
+          class="p-2 rounded-xl bg-oneui-lightBg dark:bg-oneui-darkElevated hover:text-oneui-accent transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Стрічка написаних реплік та слів автора -->
+    <div id="rp-feed-container" class="flex-1 overflow-y-auto px-3 sm:px-6 py-4">
+      <div class="max-w-3xl mx-auto flex flex-col gap-3 pb-6" id="rp-blocks-list">
+        <!-- Блоки діалогу та слів автора рендеряться тут -->
+      </div>
+    </div>
+
+    <!-- НИЖНЯ ПАНЕЛЬ ІНСТРУМЕНТІВ ДЛЯ РОЛЕЙ ТА ВВОДУ -->
+    <div class="bg-oneui-lightCard dark:bg-oneui-darkCard border-t border-gray-200/80 dark:border-zinc-800 px-3 sm:px-6 pt-2.5 pb-3 sm:pb-4 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+      <div class="max-w-3xl mx-auto flex flex-col gap-2.5">
+        
+        <!-- Рядок швидкого пошуку по ролях (автоматично з'являється, коли ролей > 8, або по кнопці лупи) -->
+        <div id="role-search-wrapper" class="hidden">
+          <div class="relative flex items-center">
+            <svg class="w-4 h-4 absolute left-3 text-oneui-lightSub dark:text-oneui-darkSub" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="M21 21l-4.35-4.35" stroke-linecap="round"></path>
+            </svg>
+            <input type="text" id="role-search-input" oninput="renderRolesBar()" placeholder="Швидкий пошук персонажа..."
+              class="w-full pl-9 pr-8 py-1.5 text-xs rounded-xl bg-oneui-lightBg dark:bg-oneui-darkElevated outline-none border border-transparent focus:border-oneui-accent" />
+            <button onclick="clearRoleSearch()" class="absolute right-2.5 text-oneui-lightSub dark:text-oneui-darkSub hover:text-oneui-accent">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Горизонтальна прокручувана панель вибору ролі або Слів автора -->
+        <div class="flex items-center gap-2">
+          <!-- Кнопка додавання нової ролі -->
+          <button onclick="openAddRoleModal()"
+            class="shrink-0 flex items-center gap-1 px-3 py-2 rounded-2xl bg-oneui-accentSoft text-oneui-accent font-semibold text-xs hover:bg-oneui-accent hover:text-white transition active:scale-95">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Роль</span>
+          </button>
+
+          <!-- Кнопка лупи для пошуку ролей -->
+          <button onclick="toggleRoleSearch()" id="btn-role-search-toggle" title="Пошук ролі"
+            class="shrink-0 w-8 h-8 rounded-xl bg-oneui-lightBg dark:bg-oneui-darkElevated flex items-center justify-center text-oneui-lightSub dark:text-oneui-darkSub hover:text-oneui-accent transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="M21 21l-4.35-4.35" stroke-linecap="round"></path>
+            </svg>
+          </button>
+
+          <!-- Прокручуваний список: Слова автора + усі додані персонажі -->
+          <div id="roles-scroll-list" class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 flex-1">
+            <!-- Чіпси рендеряться через JS -->
+          </div>
+        </div>
+
+        <!-- Індикатор того, за кого зараз пишемо -->
+        <div class="flex items-center justify-between text-xs px-1">
+          <div id="active-speaker-badge" class="flex items-center gap-1.5 font-semibold">
+            <!-- Динамічно оновлюється -->
+          </div>
+          <span class="text-[11px] text-oneui-lightSub dark:text-oneui-darkSub hidden sm:inline">
+            Enter — додати в текст • Shift+Enter — новий рядок
+          </span>
+        </div>
+
+        <!-- Поле вводу репліки / слів автора + кнопка відправки -->
+        <div class="flex items-end gap-2">
+          <div class="flex-1 bg-oneui-lightBg dark:bg-oneui-darkElevated rounded-2xl px-3.5 py-2.5 border border-transparent focus-within:border-oneui-accent transition">
+            <textarea id="rp-message-input" rows="1" placeholder="Напиши фразу персонажа..."
+              oninput="autoResizeTextarea(this)"
+              onkeydown="handleRoleplayInputKeydown(event)"
+              class="w-full bg-transparent outline-none resize-none text-sm sm:text-base max-h-32 leading-snug"></textarea>
+          </div>
+
+          <button onclick="submitRoleplayBlock()" aria-label="Додати репліку"
+            class="w-11 h-11 rounded-2xl bg-oneui-accent hover:bg-oneui-accentHover text-white flex items-center justify-center shrink-0 shadow-sm transition active:scale-95">
+            <svg class="w-5 h-5 translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- МОДАЛЬНЕ ВІКНО 1: ВИБІР ТИПУ НОТАТКИ ПРИ СТВОРЕННІ        -->
+  <!-- ========================================================= -->
+  <div id="create-choice-modal" class="hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-4" onclick="closeModalOnBackdrop(event, 'create-choice-modal')">
+    <div class="bg-oneui-lightCard dark:bg-oneui-darkCard w-full max-w-md rounded-3xl p-6 shadow-2xl animate-modal">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">Що створимо?</h2>
+        <button onclick="closeModal('create-choice-modal')" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-oneui-lightSub">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <!-- Варіант 1: Фанфік по ролях -->
+        <button onclick="createNewNote('roleplay')"
+          class="flex items-start gap-4 p-4 rounded-2xl bg-oneui-lightBg dark:bg-oneui-darkElevated hover:ring-2 hover:ring-oneui-accent text-left transition group">
+          <div class="w-12 h-12 rounded-2xl bg-oneui-accent text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
+            🎭
+          </div>
+          <div>
+            <div class="font-bold text-base group-hover:text-oneui-accent transition">Фанфік / Сценарій по ролях</div>
+            <p class="text-xs text-oneui-lightSub dark:text-oneui-darkSub mt-1 leading-relaxed">
+              Швидке перемикання персонажів у форматі <strong>«Ім'я»: «Фраза»</strong> та слова автора у красивих лапках <strong>«...»</strong>
+            </p>
+          </div>
+        </button>
+
+        <!-- Варіант 2: Звичайна нотатка / Думки -->
+        <button onclick="createNewNote('standard')"
+          class="flex items-start gap-4 p-4 rounded-2xl bg-oneui-lightBg dark:bg-oneui-darkElevated hover:ring-2 hover:ring-oneui-accent text-left transition group">
+          <div class="w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center text-2xl shrink-0">
+            💭
+          </div>
+          <div>
+            <div class="font-bold text-base group-hover:text-oneui-accent transition">Звичайна нотатка / Думки</div>
+            <p class="text-xs text-oneui-lightSub dark:text-oneui-darkSub mt-1 leading-relaxed">
+              Чистий аркуш у стилі Samsung Notes для вільних думок, ідей сюжету чи чернеток.
+            </p>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- МОДАЛЬНЕ ВІКНО 2: ДОДАВАННЯ НОВОЇ РОЛІ (ПЕРСОНАЖА)        -->
+  <!-- ========================================================= -->
+  <div id="add-role-modal" class="hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-4" onclick="closeModalOnBackdrop(event, 'add-role-modal')">
+    <div class="bg-oneui-lightCard dark:bg-oneui-darkCard w-full max-w-md rounded-3xl p-6 shadow-2xl animate-modal">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">Нова роль (персонаж)</h2>
+        <button onclick="closeModal('add-role-modal')" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-oneui-lightSub">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-oneui-lightSub dark:text-oneui-darkSub mb-1.5">Ім'я персонажа</label>
+          <input type="text" id="new-role-name-input" placeholder="Наприклад: Ім'я 1, Аліса, Детектив..."
+            onkeydown="if(event.key==='Enter') confirmAddRole()"
+            class="w-full px-4 py-3 rounded-2xl bg-oneui-lightBg dark:bg-oneui-darkElevated outline-none border border-transparent focus:border-oneui-accent text-sm font-medium" />
+        </div>
+
+        <!-- Вибір кольору для персонажа -->
+        <div>
+          <label class="block text-xs font-semibold text-oneui-lightSub dark:text-oneui-darkSub mb-2">Колір індикатора</label>
+          <div class="flex items-center gap-2.5 flex-wrap" id="role-color-picker">
+            <!-- Кольори рендеряться скриптом -->
+          </div>
+        </div>
+
+        <!-- Швидкий вибір з уже створених раніше персонажів в інших історіях -->
+        <div id="saved-characters-section" class="hidden">
+          <label class="block text-xs font-semibold text-oneui-lightSub dark:text-oneui-darkSub mb-1.5">Твої персонажі з інших історій:</label>
+          <div id="saved-characters-list" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
+        </div>
+
+        <button onclick="confirmAddRole()"
+          class="w-full py-3.5 rounded-2xl bg-oneui-accent hover:bg-oneui-accentHover text-white font-bold text-sm shadow-md transition active:scale-98 mt-1">
+          Додати роль
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- МОДАЛЬНЕ ВІКНО 3: РЕДАГУВАННЯ ОКРЕМОЇ РЕПЛІКИ             -->
+  <!-- ========================================================= -->
+  <div id="edit-block-modal" class="hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-4" onclick="closeModalOnBackdrop(event, 'edit-block-modal')">
+    <div class="bg-oneui-lightCard dark:bg-oneui-darkCard w-full max-w-md rounded-3xl p-6 shadow-2xl animate-modal">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold" id="edit-block-title">Редагувати запис</h2>
+        <button onclick="closeModal('edit-block-modal')" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-oneui-lightSub">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <!-- Вибір персонажа при редагуванні -->
+        <div id="edit-block-role-wrapper">
+          <label class="block text-xs font-semibold text-oneui-lightSub dark:text-oneui-darkSub mb-1">Хто говорить:</label>
+          <select id="edit-block-role-select" class="w-full px-3.5 py-2.5 rounded-2xl bg-oneui-lightBg dark:bg-oneui-darkElevated outline-none text-sm font-medium"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-oneui-lightSub dark:text-oneui-darkSub mb-1">Текст:</label>
+          <textarea id="edit-block-textarea" rows="4"
+            class="w-full px-4 py-3 rounded-2xl bg-oneui-lightBg dark:bg-oneui-darkElevated outline-none border border-transparent focus:border-oneui-accent text-sm leading-relaxed resize-none"></textarea>
+        </div>
+
+        <div class="flex items-center gap-2 mt-2">
+          <button onclick="deleteEditingBlock()" class="px-4 py-3 rounded-2xl bg-red-500/10 text-red-500 font-semibold text-sm hover:bg-red-500 hover:text-white transition">
+            Видалити
+          </button>
+          <button onclick="saveEditingBlock()" class="flex-1 py-3 rounded-2xl bg-oneui-accent hover:bg-oneui-accentHover text-white font-bold text-sm transition">
+            Зберегти зміни
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- МОДАЛЬНЕ ВІКНО 4: РЕЗЕРВНЕ КОПІЮВАННЯ (JSON)              -->
+  <!-- ========================================================= -->
+  <div id="backup-modal" class="hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-4" onclick="closeModalOnBackdrop(event, 'backup-modal')">
+    <div class="bg-oneui-lightCard dark:bg-oneui-darkCard w-full max-w-md rounded-3xl p-6 shadow-2xl animate-modal">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-bold">Резервна копія</h2>
+        <button onclick="closeModal('backup-modal')" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-oneui-lightSub">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <p class="text-xs text-oneui-lightSub dark:text-oneui-darkSub mb-5 leading-relaxed">
+        Усі твої нотатки автоматично зберігаються у пам'яті браузера. Ти також можеш завантажити резервний файл на телефон чи ПК, щоб ніколи не втратити свої тексти.
+      </p>
+
+      <div class="flex flex-col gap-3">
+        <button onclick="exportAllBackup()" class="w-full py-3.5 px-4 rounded-2xl bg-oneui-accent text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-oneui-accentHover transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span>Завантажити резервну копію (.json)</span>
+        </button>
+
+        <label class="w-full py-3.5 px-4 rounded-2xl bg-oneui-lightBg dark:bg-oneui-darkElevated font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer hover:ring-2 hover:ring-oneui-accent transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span>Відновити з файлу (.json)</span>
+          <input type="file" accept=".json" onchange="importAllBackup(event)" class="hidden" />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- МОДАЛЬНЕ ВІКНО ПІДТВЕРДЖЕННЯ ВИДАЛЕННЯ НОТАТКИ            -->
+  <!-- ========================================================= -->
+  <div id="delete-note-modal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4" onclick="closeModalOnBackdrop(event, 'delete-note-modal')">
+    <div class="bg-oneui-lightCard dark:bg-oneui-darkCard w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-modal text-center">
+      <div class="w-14 h-14 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mx-auto mb-3 text-2xl">
+        🗑️
+      </div>
+      <h3 class="text-lg font-bold mb-1">Видалити нотатку?</h3>
+      <p class="text-xs text-oneui-lightSub dark:text-oneui-darkSub mb-5">Цю дію неможливо буде скасувати.</p>
+      <div class="flex items-center gap-2">
+        <button onclick="closeModal('delete-note-modal')" class="flex-1 py-3 rounded-2xl bg-oneui-lightBg dark:bg-oneui-darkElevated font-semibold text-sm">
+          Скасувати
+        </button>
+        <button onclick="confirmDeleteNote()" class="flex-1 py-3 rounded-2xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 transition">
+          Видалити
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- JAVASCRIPT: ЛОГІКА ЗАСТОСУНКУ                             -->
+  <!-- ========================================================= -->
+  <script>
+    // Ключі для збереження в localStorage
+    const STORAGE_KEY_NOTES = 'samsung_notes_writer_data_v1';
+    const STORAGE_KEY_THEME = 'samsung_notes_writer_theme_v1';
+    const STORAGE_KEY_SAVED_ROLES = 'samsung_notes_writer_roles_v1';
+
+    // Палітра кольорів для персонажів у стилі One UI
+    const ROLE_COLORS = [
+      '#FF6B00', // Помаранчевий One UI
+      '#2563EB', // Синій
+      '#10B981', // Смарагдовий
+      '#8B5CF6', // Фіолетовий
+      '#EC4899', // Рожевий
+      '#F59E0B', // Бурштиновий
+      '#06B6D4', // Бірюзовий
+      '#EF4444', // Червоний
+      '#6366F1', // Індиго
+      '#14B8A6'  // Тіл
+    ];
+
+    // Глобальний стан застосунку
+    let notes = [];
+    let savedGlobalRoles = []; // Історія створених персонажів для швидкого повторного вибору
+    let currentFilterCategory = 'Усі';
+    let activeNoteId = null;
+    let noteToDeleteId = null;
+
+    // Стан редактора ролей
+    let activeSpeaker = { type: 'role', roleId: null }; // { type: 'role', roleId: '...' } або { type: 'narrator' }
+    let selectedNewRoleColor = ROLE_COLORS[0];
+    let editingBlockIndex = null;
+    let forceShowRoleSearch = false;
+
+    // Ініціалізація при завантаженні сторінки
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      loadData();
+      renderColorPicker();
+      renderNotesList();
+    });
+
+    // =========================================================
+    // 1. ТЕМА ОФОРМЛЕННЯ (СВІТЛА / ТЕМНА AMOLED)
+    // =========================================================
+    function initTheme() {
+      const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.toggle('dark');
+      localStorage.setItem(STORAGE_KEY_THEME, isDark ? 'dark' : 'light');
+    }
+
+    // =========================================================
+    // 2. ЗАВАНТАЖЕННЯ ТА ЗБЕРЕЖЕННЯ ДАНИХ (З ДЕМО-НОТАТКАМИ)
+    // =========================================================
+    function loadData() {
+      try {
+        const rawNotes = localStorage.getItem(STORAGE_KEY_NOTES);
+        const rawRoles = localStorage.getItem(STORAGE_KEY_SAVED_ROLES);
+
+        if (rawRoles) {
+          savedGlobalRoles = JSON.parse(rawRoles);
+        }
+
+        if (rawNotes) {
+          notes = JSON.parse(rawNotes);
+        } else {
+          // Створюємо 2 красиві демонстраційні нотатки при першому запуску
+          const now = Date.now();
+          notes = [
+            {
+              id: 'demo-roleplay-1',
+              type: 'roleplay',
+              title: 'Зустріч на нічному вокзалі (Приклад)',
+              category: 'Фанфіки',
+              pinned: true,
+              updatedAt: now,
+              roles: [
+                { id: 'r1', name: 'Ім\'я 1', color: '#FF6B00' },
+                { id: 'r2', name: 'Ім\'я 2', color: '#2563EB' }
+              ],
+              blocks: [
+                {
+                  type: 'narrator',
+                  text: 'Дощ тихо стукав по скляному даху перону, а годинник показував північ.'
+                },
+                {
+                  type: 'dialogue',
+                  roleId: 'r1',
+                  roleName: 'Ім\'я 1',
+                  roleColor: '#FF6B00',
+                  text: 'Я вже думав, що ти не прийдеш. Останній потяг рушає за п’ять хвилин.'
+                },
+                {
+                  type: 'dialogue',
+                  roleId: 'r2',
+                  roleName: 'Ім\'я 2',
+                  roleColor: '#2563EB',
+                  text: 'Але я тут. Деякі історії не можна залишати недописаними.'
+                },
+                {
+                  type: 'narrator',
+                  text: 'Він усміхнувся, ховаючи руки в кишені пальта, і зробив крок назустріч.'
+                }
+              ]
+            },
+            {
+              id: 'demo-thought-1',
+              type: 'standard',
+              title: 'Ідеї для нових сюжетів та думки',
+              category: 'Думки',
+              pinned: false,
+              updatedAt: now - 3600000,
+              content: 'Тут можна вільно записувати будь-які думки, уривки текстів або нотатки на ходу.\n\nА коли захочеться пописати діалоги по ролях — просто натисни помаранчеву кнопку «+» на головному екрані та обери «Фанфік / Сценарій по ролях».'
+            }
+          ];
+          savedGlobalRoles = [
+            { name: 'Ім\'я 1', color: '#FF6B00' },
+            { name: 'Ім\'я 2', color: '#2563EB' }
+          ];
+          saveData();
+        }
+      } catch (e) {
+        console.error('Помилка читання даних:', e);
+        notes = [];
+      }
+    }
+
+    function saveData() {
+      try {
+        localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notes));
+        localStorage.setItem(STORAGE_KEY_SAVED_ROLES, JSON.stringify(savedGlobalRoles));
+      } catch (e) {
+        showToast('Не вдалося зберегти зміни в пам’ять браузера');
+      }
+    }
+
+    // =========================================================
+    // 3. ГОЛОВНИЙ ЕКРАН: ФІЛЬТРАЦІЯ, ПОШУК ТА РЕНДЕР КАРТОК
+    // =========================================================
+    function setFilterCategory(category) {
+      currentFilterCategory = category;
+      document.querySelectorAll('.cat-tab').forEach(btn => {
+        if (btn.dataset.cat === category) {
+          btn.className = 'cat-tab px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition bg-oneui-accent text-white shadow-sm';
+        } else {
+          btn.className = 'cat-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition bg-oneui-lightCard dark:bg-oneui-darkCard text-oneui-lightSub dark:text-oneui-darkSub hover:text-oneui-accent';
+        }
+      });
+      renderNotesList();
+    }
+
+    function toggleGlobalSearch() {
+      const bar = document.getElementById('global-search-bar');
+      const input = document.getElementById('global-search-input');
+      const isHidden = bar.classList.contains('hidden');
+      if (isHidden) {
+        bar.classList.remove('hidden');
+        input.focus();
+      } else {
+        bar.classList.add('hidden');
+        input.value = '';
+        renderNotesList();
+      }
+    }
+
+    function clearGlobalSearch() {
+      const input = document.getElementById('global-search-input');
+      input.value = '';
+      input.focus();
+      renderNotesList();
+    }
+
+    function renderNotesList() {
+      const grid = document.getElementById('notes-grid');
+      const emptyState = document.getElementById('empty-state');
+      const counterEl = document.getElementById('notes-counter');
+      const searchQuery = (document.getElementById('global-search-input').value || '').trim().toLowerCase();
+
+      // Сортування: спочатку закріплені, потім за датою оновлення
+      const sorted = [...notes].sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return b.updatedAt - a.updatedAt;
+      });
+
+      const filtered = sorted.filter(note => {
+        const matchesCat = currentFilterCategory === 'Усі' || note.category === currentFilterCategory;
+        if (!matchesCat) return false;
+        if (!searchQuery) return true;
+
+        const titleMatch = (note.title || '').toLowerCase().includes(searchQuery);
+        if (note.type === 'standard') {
+          return titleMatch || (note.content || '').toLowerCase().includes(searchQuery);
+        } else {
+          const blocksMatch = (note.blocks || []).some(b =>
+            (b.text || '').toLowerCase().includes(searchQuery) ||
+            (b.roleName || '').toLowerCase().includes(searchQuery)
+          );
+          return titleMatch || blocksMatch;
+        }
+      });
+
+      counterEl.textContent = `${filtered.length} ${getPluralNotes(filtered.length)}`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      grid.innerHTML = filtered.map(note => {
+        const isRoleplay = note.type === 'roleplay';
+        const previewText = getNotePreview(note);
+        const dateStr = formatDate(note.updatedAt);
+
+        return `
+          <div onclick="openNote('${note.id}')"
+            class="group relative bg-oneui-lightCard dark:bg-oneui-darkCard rounded-3xl p-5 shadow-xs hover:shadow-md border border-transparent hover:border-oneui-accent/30 transition cursor-pointer flex flex-col justify-between min-h-[145px]">
+            
+            <div>
+              <!-- Верхній рядок картки: бейдж типу та кнопки дій -->
+              <div class="flex items-center justify-between gap-2 mb-2.5">
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${isRoleplay ? 'bg-oneui-accentSoft text-oneui-accent' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'}">
+                  ${isRoleplay ? '🎭 По ролях' : '💭 Нотатка'}
+                </span>
+
+                <div class="flex items-center gap-1" onclick="event.stopPropagation()">
+                  <!-- Закріпити -->
+                  <button onclick="togglePinNote('${note.id}')" title="${note.pinned ? 'Відкріпити' : 'Закріпити'}"
+                    class="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition ${note.pinned ? 'text-oneui-accent' : 'text-gray-300 dark:text-zinc-600 hover:text-gray-500'}">
+                    <svg class="w-4 h-4" fill="${note.pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                  </button>
+
+                  <!-- Видалити -->
+                  <button onclick="askDeleteNote('${note.id}')" title="Видалити"
+                    class="p-1.5 rounded-full hover:bg-red-500/10 text-gray-300 dark:text-zinc-600 hover:text-red-500 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Заголовок -->
+              <h3 class="font-bold text-base sm:text-lg line-clamp-1 mb-1.5">
+                ${escapeHtml(note.title || 'Без назви')}
+              </h3>
+
+              <!-- Прев'ю тексту -->
+              <p class="text-xs sm:text-sm text-oneui-lightSub dark:text-oneui-darkSub line-clamp-2 leading-relaxed">
+                ${escapeHtml(previewText)}
+              </p>
+            </div>
+
+            <!-- Низ картки: папка та дата -->
+            <div class="flex items-center justify-between text-[11px] text-oneui-lightSub dark:text-oneui-darkSub mt-4 pt-2.5 border-t border-gray-100 dark:border-zinc-800/70">
+              <span>${escapeHtml(note.category || 'Усі')}</span>
+              <span>${dateStr}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getNotePreview(note) {
+      if (note.type === 'standard') {
+        return note.content && note.content.trim() ? note.content.trim() : 'Порожня нотатка...';
+      } else {
+        if (!note.blocks || note.blocks.length === 0) {
+          return 'Ще немає жодної репліки. Натисни, щоб почати...';
+        }
+        const first = note.blocks[0];
+        if (first.type === 'narrator') {
+          return `«${first.text}»`;
+        }
+        return `"${first.roleName}": "${first.text}"`;
+      }
+    }
+
+    // =========================================================
+    // 4. СТВОРЕННЯ, ВІДКРИТТЯ ТА ВИДАЛЕННЯ НОТАТОК
+    // =========================================================
+    function openCreateChoiceModal() {
+      document.getElementById('create-choice-modal').classList.remove('hidden');
+    }
+
+    function createNewNote(type) {
+      closeModal('create-choice-modal');
+      const newId = 'note-' + Date.now();
+      const defaultCat = currentFilterCategory !== 'Усі'
+        ? currentFilterCategory
+        : (type === 'roleplay' ? 'Фанфіки' : 'Думки');
+
+      if (type === 'standard') {
+        const newNote = {
+          id: newId,
+          type: 'standard',
+          title: '',
+          category: defaultCat,
+          pinned: false,
+          updatedAt: Date.now(),
+          content: ''
+        };
+        notes.unshift(newNote);
+        saveData();
+        openNote(newId);
+      } else {
+        // Підтягуємо 2 базові ролі якщо є у збережених, щоб одразу було зручно
+        const initialRoles = savedGlobalRoles.slice(0, 2).map((r, idx) => ({
+          id: 'role-' + Date.now() + '-' + idx,
+          name: r.name,
+          color: r.color
+        }));
+
+        const newRp = {
+          id: newId,
+          type: 'roleplay',
+          title: '',
+          category: defaultCat,
+          pinned: false,
+          updatedAt: Date.now(),
+          roles: initialRoles,
+          blocks: []
+        };
+        notes.unshift(newRp);
+        saveData();
+        openNote(newId);
+      }
+    }
+
+    function openNote(id) {
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+      activeNoteId = id;
+
+      document.getElementById('home-view').classList.add('hidden');
+
+      if (note.type === 'standard') {
+        document.getElementById('note-editor-view').classList.remove('hidden');
+        document.getElementById('note-title-input').value = note.title || '';
+        document.getElementById('note-body-input').value = note.content || '';
+        document.getElementById('note-category-select').value = note.category || 'Думки';
+        document.getElementById('note-date-label').textContent = formatDate(note.updatedAt);
+        updateStandardNoteStats(note.content || '');
+      } else {
+        document.getElementById('roleplay-editor-view').classList.remove('hidden');
+        document.getElementById('rp-title-input').value = note.title || '';
+        document.getElementById('rp-category-select').value = note.category || 'Фанфіки';
+        forceShowRoleSearch = false;
+        document.getElementById('role-search-input').value = '';
+
+        // Встановлюємо активного мовця за замовчуванням
+        if (note.roles && note.roles.length > 0) {
+          activeSpeaker = { type: 'role', roleId: note.roles[0].id };
+        } else {
+          activeSpeaker = { type: 'narrator' };
+        }
+
+        renderRolesBar();
+        renderRoleplayBlocks();
+        updateActiveSpeakerUI();
+        scrollRoleplayToBottom();
+      }
+    }
+
+    function closeEditor() {
+      activeNoteId = null;
+      document.getElementById('note-editor-view').classList.add('hidden');
+      document.getElementById('roleplay-editor-view').classList.add('hidden');
+      document.getElementById('home-view').classList.remove('hidden');
+      renderNotesList();
+    }
+
+    function togglePinNote(id) {
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+      note.pinned = !note.pinned;
+      saveData();
+      renderNotesList();
+      showToast(note.pinned ? 'Нотатку закріплено' : 'Нотатку відкріплено');
+    }
+
+    function askDeleteNote(id) {
+      noteToDeleteId = id;
+      document.getElementById('delete-note-modal').classList.remove('hidden');
+    }
+
+    function confirmDeleteNote() {
+      if (!noteToDeleteId) return;
+      notes = notes.filter(n => n.id !== noteToDeleteId);
+      saveData();
+      noteToDeleteId = null;
+      closeModal('delete-note-modal');
+      renderNotesList();
+      showToast('Нотатку видалено');
+    }
+
+    // =========================================================
+    // 5. РЕДАКТОР ЗВИЧАЙНОЇ НОТАТКИ / ДУМОК
+    // =========================================================
+    function updateStandardNote() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+
+      note.title = document.getElementById('note-title-input').value;
+      note.content = document.getElementById('note-body-input').value;
+      note.category = document.getElementById('note-category-select').value;
+      note.updatedAt = Date.now();
+
+      updateStandardNoteStats(note.content);
+      saveData();
+
+      const statusEl = document.getElementById('note-save-status');
+      statusEl.textContent = 'Збережено';
+    }
+
+    function updateStandardNoteStats(text) {
+      const trimmed = text.trim();
+      const words = trimmed ? trimmed.split(/\s+/).length : 0;
+      const chars = text.length;
+      document.getElementById('note-stats-label').textContent = `${words} слів, ${chars} символів`;
+    }
+
+    function copyCurrentNoteText() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+      const fullText = `${note.title ? note.title + '\n\n' : ''}${note.content || ''}`;
+      copyTextToClipboard(fullText);
+    }
+
+    function downloadCurrentNoteTxt() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+      const fullText = `${note.title ? note.title + '\n\n' : ''}${note.content || ''}`;
+      downloadTxtFile(note.title || 'Нотатка', fullText);
+    }
+
+    // =========================================================
+    // 6. РЕДАКТОР ФАНФІКІВ ПО РОЛЯХ (ПЕРСОНАЖІ, СЛОВА АВТОРА, СТРІЧКА)
+    // =========================================================
+    function updateRoleplayMeta() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+      note.title = document.getElementById('rp-title-input').value;
+      note.category = document.getElementById('rp-category-select').value;
+      note.updatedAt = Date.now();
+      saveData();
+    }
+
+    // Рендер горизонтальної панелі ролей + кнопка «Слова автора»
+    function renderRolesBar() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+
+      const listEl = document.getElementById('roles-scroll-list');
+      const searchWrapper = document.getElementById('role-search-wrapper');
+      const searchQuery = (document.getElementById('role-search-input').value || '').trim().toLowerCase();
+
+      // Автоматично показуємо рядок пошуку, якщо персонажів більше 8, або якщо користувач натиснув лупу
+      if (note.roles.length > 8 || forceShowRoleSearch) {
+        searchWrapper.classList.remove('hidden');
+      } else {
+        searchWrapper.classList.add('hidden');
+      }
+
+      const isNarratorActive = activeSpeaker.type === 'narrator';
+
+      // Кнопка «Слова автора» завжди перша у списку для миттєвого доступу
+      let html = `
+        <button onclick="selectNarrator()"
+          class="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-semibold transition border ${
+            isNarratorActive
+              ? 'bg-zinc-800 text-white dark:bg-white dark:text-black border-transparent shadow-xs'
+              : 'bg-oneui-lightBg dark:bg-oneui-darkElevated text-oneui-lightText dark:text-oneui-darkText border-transparent hover:border-gray-300 dark:hover:border-zinc-700'
+          }">
+          <span>✒️ Слова автора « »</span>
+        </button>
+      `;
+
+      // Фільтруємо персонажів за пошуком
+      const filteredRoles = note.roles.filter(r =>
+        !searchQuery || r.name.toLowerCase().includes(searchQuery)
+      );
+
+      filteredRoles.forEach(role => {
+        const isActive = activeSpeaker.type === 'role' && activeSpeaker.roleId === role.id;
+        html += `
+          <button onclick="selectRole('${role.id}')"
+            style="${isActive ? `background-color: ${role.color}; color: #FFFFFF;` : ''}"
+            class="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-semibold transition ${
+              isActive
+                ? 'shadow-xs scale-[1.02]'
+                : 'bg-oneui-lightBg dark:bg-oneui-darkElevated text-oneui-lightText dark:text-oneui-darkText hover:opacity-85'
+            }">
+            <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${isActive ? '#FFFFFF' : role.color}"></span>
+            <span>${escapeHtml(role.name)}</span>
+          </button>
+        `;
+      });
+
+      listEl.innerHTML = html;
+    }
+
+    function toggleRoleSearch() {
+      forceShowRoleSearch = !forceShowRoleSearch;
+      const wrapper = document.getElementById('role-search-wrapper');
+      const input = document.getElementById('role-search-input');
+      if (forceShowRoleSearch) {
+        wrapper.classList.remove('hidden');
+        input.focus();
+      } else {
+        input.value = '';
+        renderRolesBar();
+      }
+    }
+
+    function clearRoleSearch() {
+      const input = document.getElementById('role-search-input');
+      input.value = '';
+      input.focus();
+      renderRolesBar();
+    }
+
+    function selectRole(roleId) {
+      activeSpeaker = { type: 'role', roleId };
+      renderRolesBar();
+      updateActiveSpeakerUI();
+      document.getElementById('rp-message-input').focus();
+    }
+
+    function selectNarrator() {
+      activeSpeaker = { type: 'narrator' };
+      renderRolesBar();
+      updateActiveSpeakerUI();
+      document.getElementById('rp-message-input').focus();
+    }
+
+    function updateActiveSpeakerUI() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+
+      const badge = document.getElementById('active-speaker-badge');
+      const textarea = document.getElementById('rp-message-input');
+
+      if (activeSpeaker.type === 'narrator') {
+        badge.innerHTML = `
+          <span class="text-oneui-lightSub dark:text-oneui-darkSub">Режим:</span>
+          <span class="px-2 py-0.5 rounded-lg bg-zinc-800 text-white dark:bg-white dark:text-black">✒️ Слова автора « »</span>
+        `;
+        textarea.placeholder = 'Опиши дії, атмосферу чи думки (автоматично візьметься в «...»)...';
+      } else {
+        const role = note.roles.find(r => r.id === activeSpeaker.roleId);
+        if (role) {
+          badge.innerHTML = `
+            <span class="text-oneui-lightSub dark:text-oneui-darkSub">Пише:</span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-white" style="background-color: ${role.color}">
+              ${escapeHtml(role.name)}
+            </span>
+          `;
+          textarea.placeholder = `Фраза для персонажа «${role.name}»...`;
+        } else {
+          selectNarrator();
+        }
+      }
+    }
+
+    // Додавання нового персонажа
+    function renderColorPicker() {
+      const container = document.getElementById('role-color-picker');
+      container.innerHTML = ROLE_COLORS.map(color => `
+        <button type="button" onclick="pickNewRoleColor('${color}')"
+          style="background-color: ${color}"
+          class="w-8 h-8 rounded-full transition-transform ${selectedNewRoleColor === color ? 'scale-115 ring-2 ring-offset-2 ring-gray-400 dark:ring-offset-zinc-900' : 'opacity-80 hover:opacity-100'}">
+        </button>
+      `).join('');
+    }
+
+    function pickNewRoleColor(color) {
+      selectedNewRoleColor = color;
+      renderColorPicker();
+    }
+
+    function openAddRoleModal() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+
+      document.getElementById('new-role-name-input').value = '';
+      // Автоматично підбираємо наступний невикористаний колір
+      const usedColors = note.roles.map(r => r.color);
+      const nextColor = ROLE_COLORS.find(c => !usedColors.includes(c)) || ROLE_COLORS[note.roles.length % ROLE_COLORS.length];
+      selectedNewRoleColor = nextColor;
+      renderColorPicker();
+
+      // Показуємо збережених персонажів з інших нотаток, яких ще немає в цій
+      const existingNames = new Set(note.roles.map(r => r.name.toLowerCase()));
+      const suggestions = savedGlobalRoles.filter(sr => !existingNames.has(sr.name.toLowerCase()));
+      const savedSection = document.getElementById('saved-characters-section');
+      const savedList = document.getElementById('saved-characters-list');
+
+      if (suggestions.length > 0) {
+        savedSection.classList.remove('hidden');
+        savedList.innerHTML = suggestions.map(sr => `
+          <button type="button" onclick="quickAddSavedRole('${escapeHtml(sr.name)}', '${sr.color}')"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-oneui-lightBg dark:bg-oneui-darkElevated text-xs font-medium hover:ring-1 hover:ring-oneui-accent transition">
+            <span class="w-2 h-2 rounded-full" style="background-color: ${sr.color}"></span>
+            <span>${escapeHtml(sr.name)}</span>
+          </button>
+        `).join('');
+      } else {
+        savedSection.classList.add('hidden');
+      }
+
+      document.getElementById('add-role-modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('new-role-name-input').focus(), 80);
+    }
+
+    function quickAddSavedRole(name, color) {
+      document.getElementById('new-role-name-input').value = name;
+      selectedNewRoleColor = color;
+      confirmAddRole();
+    }
+
+    function confirmAddRole() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+
+      const rawName = document.getElementById('new-role-name-input').value.trim();
+      if (!rawName) {
+        showToast('Введи ім’я персонажа');
+        return;
+      }
+
+      const newRole = {
+        id: 'role-' + Date.now(),
+        name: rawName,
+        color: selectedNewRoleColor
+      };
+
+      note.roles.push(newRole);
+      note.updatedAt = Date.now();
+
+      // Зберігаємо у загальний список улюблених персонажів
+      if (!savedGlobalRoles.some(r => r.name.toLowerCase() === rawName.toLowerCase())) {
+        savedGlobalRoles.unshift({ name: rawName, color: selectedNewRoleColor });
+        if (savedGlobalRoles.length > 30) savedGlobalRoles.pop();
+      }
+
+      saveData();
+      closeModal('add-role-modal');
+      selectRole(newRole.id);
+      showToast(`Додано роль: ${rawName}`);
+    }
+
+    // Додавання нової репліки або слів автора в історію
+    function handleRoleplayInputKeydown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        submitRoleplayBlock();
+      }
+    }
+
+    function submitRoleplayBlock() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+
+      const input = document.getElementById('rp-message-input');
+      let text = input.value.trim();
+      if (!text) return;
+
+      if (activeSpeaker.type === 'narrator') {
+        // Очищаємо зайві зовнішні лапки, якщо користувач їх сам ввів, щоб обрамити гарними «...»
+        text = text.replace(/^[«"„]+|[»"“]+$/g, '').trim();
+        note.blocks.push({
+          type: 'narrator',
+          text: text
+        });
+      } else {
+        const role = note.roles.find(r => r.id === activeSpeaker.roleId);
+        if (!role) {
+          showToast('Спочатку обери або додай роль');
+          return;
+        }
+        // Очищаємо зовнішні лапки, щоб красиво відображати "Ім'я":"Фраза"
+        text = text.replace(/^[«"„]+|[»"“]+$/g, '').trim();
+        note.blocks.push({
+          type: 'dialogue',
+          roleId: role.id,
+          roleName: role.name,
+          roleColor: role.color,
+          text: text
+        });
+      }
+
+      note.updatedAt = Date.now();
+      saveData();
+
+      input.value = '';
+      input.style.height = 'auto';
+      renderRoleplayBlocks();
+      scrollRoleplayToBottom();
+    }
+
+    // Відображення стрічки діалогів та слів автора
+    function renderRoleplayBlocks() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+
+      const container = document.getElementById('rp-blocks-list');
+
+      if (!note.blocks || note.blocks.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-14 px-4">
+            <div class="w-16 h-16 rounded-3xl bg-oneui-lightCard dark:bg-oneui-darkCard mx-auto flex items-center justify-center text-2xl mb-3 shadow-xs">
+              🎭
+            </div>
+            <h3 class="font-bold text-base mb-1">Почни свою історію</h3>
+            <p class="text-xs text-oneui-lightSub dark:text-oneui-darkSub max-w-xs mx-auto leading-relaxed">
+              Обери персонажа на панелі внизу або натисни <strong>«+ Роль»</strong>, щоб писати репліки у форматі <strong>"Ім'я": "Фраза"</strong>, а для описів обирай <strong>«✒️ Слова автора»</strong>.
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = note.blocks.map((block, index) => {
+        if (block.type === 'narrator') {
+          // Слова автора у гарних айфонівських/друкарських лапках «...»
+          return `
+            <div onclick="openEditBlockModal(${index})"
+              class="group relative bg-oneui-lightCard/70 dark:bg-oneui-darkCard/70 hover:bg-oneui-lightCard dark:hover:bg-oneui-darkCard rounded-2xl px-4 py-3.5 border border-dashed border-gray-300/80 dark:border-zinc-800 cursor-pointer transition">
+              <p class="text-sm sm:text-base italic text-oneui-lightSub dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">«${escapeHtml(block.text)}»</p>
+              <span class="opacity-0 group-hover:opacity-100 absolute top-2 right-2.5 text-[10px] font-medium text-oneui-accent transition">
+                Редагувати
+              </span>
+            </div>
+          `;
+        } else {
+          // Конструкція "Ім'я":"фраза" як просив користувач
+          const color = block.roleColor || '#FF6B00';
+          return `
+            <div onclick="openEditBlockModal(${index})"
+              class="group relative bg-oneui-lightCard dark:bg-oneui-darkCard rounded-2xl px-4 py-3.5 shadow-2xs hover:shadow-sm border border-transparent hover:border-oneui-accent/30 cursor-pointer transition">
+              <div class="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
+                <span class="font-bold" style="color: ${color}">"${escapeHtml(block.roleName)}"</span><span class="text-oneui-lightSub dark:text-oneui-darkSub font-semibold">: </span><span>"${escapeHtml(block.text)}"</span>
+              </div>
+              <span class="opacity-0 group-hover:opacity-100 absolute top-2 right-2.5 text-[10px] font-medium text-oneui-accent transition">
+                Редагувати
+              </span>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    function scrollRoleplayToBottom() {
+      const feed = document.getElementById('rp-feed-container');
+      setTimeout(() => {
+        feed.scrollTop = feed.scrollHeight;
+      }, 30);
+    }
+
+    // Редагування або видалення окремої репліки в історії
+    function openEditBlockModal(index) {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note || !note.blocks[index]) return;
+
+      editingBlockIndex = index;
+      const block = note.blocks[index];
+      const roleWrapper = document.getElementById('edit-block-role-wrapper');
+      const roleSelect = document.getElementById('edit-block-role-select');
+      const textarea = document.getElementById('edit-block-textarea');
+
+      if (block.type === 'narrator') {
+        document.getElementById('edit-block-title').textContent = 'Редагувати слова автора';
+        roleWrapper.classList.add('hidden');
+      } else {
+        document.getElementById('edit-block-title').textContent = 'Редагувати репліку';
+        roleWrapper.classList.remove('hidden');
+        roleSelect.innerHTML = note.roles.map(r => `
+          <option value="${r.id}" ${r.id === block.roleId ? 'selected' : ''}>${escapeHtml(r.name)}</option>
+        `).join('');
+      }
+
+      textarea.value = block.text;
+      document.getElementById('edit-block-modal').classList.remove('hidden');
+    }
+
+    function saveEditingBlock() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note || editingBlockIndex === null) return;
+
+      const block = note.blocks[editingBlockIndex];
+      const newText = document.getElementById('edit-block-textarea').value.trim().replace(/^[«"„]+|[»"“]+$/g, '');
+      if (!newText) {
+        showToast('Текст не може бути порожнім');
+        return;
+      }
+
+      block.text = newText;
+
+      if (block.type === 'dialogue') {
+        const selectedRoleId = document.getElementById('edit-block-role-select').value;
+        const foundRole = note.roles.find(r => r.id === selectedRoleId);
+        if (foundRole) {
+          block.roleId = foundRole.id;
+          block.roleName = foundRole.name;
+          block.roleColor = foundRole.color;
+        }
+      }
+
+      note.updatedAt = Date.now();
+      saveData();
+      closeModal('edit-block-modal');
+      renderRoleplayBlocks();
+      showToast('Запис оновлено');
+    }
+
+    function deleteEditingBlock() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note || editingBlockIndex === null) return;
+
+      note.blocks.splice(editingBlockIndex, 1);
+      note.updatedAt = Date.now();
+      saveData();
+      closeModal('edit-block-modal');
+      renderRoleplayBlocks();
+      showToast('Запис видалено');
+    }
+
+    // Форматування готового тексту фанфіку для копіювання або завантаження
+    function formatRoleplayAsPlainText(note) {
+      const header = note.title ? `${note.title}\n${'='.repeat(Math.min(note.title.length, 30))}\n\n` : '';
+      const body = (note.blocks || []).map(b => {
+        if (b.type === 'narrator') {
+          return `«${b.text}»`;
+        }
+        return `"${b.roleName}":"${b.text}"`;
+      }).join('\n\n');
+      return header + body;
+    }
+
+    function copyRoleplayText() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+      const text = formatRoleplayAsPlainText(note);
+      copyTextToClipboard(text);
+    }
+
+    function downloadRoleplayTxt() {
+      const note = notes.find(n => n.id === activeNoteId);
+      if (!note) return;
+      const text = formatRoleplayAsPlainText(note);
+      downloadTxtFile(note.title || 'Фанфік', text);
+    }
+
+    // =========================================================
+    // 7. ЕКСПОРТ, ІМПОРТ ТА ДОПОМІЖНІ ФУНКЦІЇ
+    // =========================================================
+    function openBackupModal() {
+      document.getElementById('backup-modal').classList.remove('hidden');
+    }
+
+    function exportAllBackup() {
+      const payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        notes,
+        savedGlobalRoles
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Мої_нотатки_резерв_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Резервну копію завантажено');
+    }
+
+    function importAllBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (Array.isArray(data.notes)) {
+            notes = data.notes;
+            if (Array.isArray(data.savedGlobalRoles)) {
+              savedGlobalRoles = data.savedGlobalRoles;
+            }
+            saveData();
+            renderNotesList();
+            closeModal('backup-modal');
+            showToast('Нотатки успішно відновлено!');
+          } else {
+            showToast('Неправильний формат файлу');
+          }
+        } catch (err) {
+          showToast('Помилка читання файлу резервної копії');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function copyTextToClipboard(text) {
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      document.body.appendChild(temp);
+      temp.select();
+      try {
+        document.execCommand('copy');
+        showToast('Текст скопійовано в буфер обміну');
+      } catch (err) {
+        showToast('Не вдалося скопіювати текст');
+      }
+      document.body.removeChild(temp);
+    }
+
+    function downloadTxtFile(filename, content) {
+      const safeName = filename.replace(/[\\/:*?"<>|]/g, '_') || 'Нотатка';
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Файл .txt збережено');
+    }
+
+    function autoResizeTextarea(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 128) + 'px';
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function closeModalOnBackdrop(event, modalId) {
+      if (event.target.id === modalId) {
+        closeModal(modalId);
+      }
+    }
+
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg animate-modal text-center';
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.2s ease';
+        setTimeout(() => toast.remove(), 200);
+      }, 2200);
+    }
+
+    function formatDate(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      const timeStr = date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+
+      if (isToday) {
+        return `Сьогодні, ${timeStr}`;
+      }
+      return date.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }) + `, ${timeStr}`;
+    }
+
+    function getPluralNotes(count) {
+      const mod10 = count % 10;
+      const mod100 = count % 100;
+      if (mod10 === 1 && mod100 !== 11) return 'запис';
+      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'записи';
+      return 'записів';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
